@@ -2,7 +2,7 @@
 
 set -e
 
-: ${1?"Usage: $0 test|install|deploy|release|website-only"}
+: ${1?"Usage: $0 test|install|deploy|release|website-only|test-deploy"}
 
 COMMAND=$1
 
@@ -24,6 +24,8 @@ function createScalaProject {
   SCALA_PROJECT="genson-scala_$SCALA_VERSION"
 
   cp -R genson-scala $SCALA_PROJECT
+
+  cp $SCALA_PROJECT/pom.xml $SCALA_PROJECT/pom.back.xml
 
   # Replacing the first occurrence of scala version definition in the properties and letting maven take care of the rest
   xmlstarlet edit -L -u "/project/properties/scala.version" -v $SCALA_VERSION $SCALA_PROJECT/pom.xml
@@ -72,12 +74,21 @@ function deployWebsite {
 
 #cd tmp_release
 
+cp pom.xml pom.back.xml
 sed -i "s/<module>genson-scala<\/module>//" pom.xml
 
 createScalaProject 2.10
 createScalaProject 2.11
 
 case "$COMMAND" in
+"test-deploy")
+    VERSION=$(sed -n 's|[ \t]*<version>\(.*\)</version>|\1|p' pom.xml|head -1|sed 's/-SNAPSHOT//')
+    mvn release:branch -DbranchName=genson-$VERSION -DpushChanges=true #-DsuppressCommitBeforeBranch=true -DremoteTagging=false
+    # push release-branch
+    # checkout master
+    # update versions
+    # push master
+    ;;
 "test")
     mvn test
     ;;
